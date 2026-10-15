@@ -36,8 +36,9 @@ for (let f = 0; f < N; f++) {
   if (fired < TL.length) { const [tt, sel] = TL[fired]; const k = (t - (tt - 0.7)) / 0.7; if (k > 0) { const e = ease(Math.min(1, k)); cx = cur.x + (pos[sel].x - cur.x) * e; cy = cur.y + (pos[sel].y - cur.y) * e; } }
   if (fired > 0) { const dtc = t - TL[fired - 1][0]; if (dtc < 0.35) ring = 1 - dtc / 0.35; }
   const show = t > 3.6;
+  const FROM = Number(process.env.FROM || 0); await page.evaluate((skip) => (window.__skipRender = skip), f < FROM);
   await page.evaluate((cx, cy, ring, show) => { if (show) __cap.cursor(cx + 6, cy + 4, ring); __cap.frame(1 / 30); }, cx, cy, ring, show);
-  if (!ONLY || ONLY.includes(f)) fs.writeFileSync(`${DIR}/f${String(f).padStart(5, '0')}.jpg`, await page.screenshot({ type: 'jpeg', quality: 92 }));
+  if (f >= FROM && (!ONLY || ONLY.includes(f))) fs.writeFileSync(`${DIR}/f${String(f).padStart(5, '0')}.jpg`, await page.screenshot({ type: 'jpeg', quality: 92 }));
   if (f % 60 === 0) console.log('frame', f, new Date().toISOString());
 }
 await browser.close();

@@ -200,7 +200,7 @@ for (const x of [-10, -6, -2]) {
   box(3, 1.6, 2.6, '#7A716A', x, FY, -3.2, world); box(3.05, 0.12, 2.65, '#5B5550', x, FY + 1.6, -3.2, world);
   const wok = mesh(new THREE.SphereGeometry(1.0, 10, 5, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), mat('#4A4E52', { r: 0.7 }), x, FY + 2.55, -3.3, world); wok.material.side = THREE.DoubleSide;
   const f = mesh(new THREE.CylinderGeometry(0.72, 0.6, 0.14, 9), mat('#B86A2E'), x, FY + 1.95, -3.3, world); wokFood.push(f);
-  for (let i = 0; i < 8; i++) { const fl = mesh(new THREE.ConeGeometry(0.2, 0.75, 5), mat('#FFB24A', { e: '#FF8A2A', ei: 2.2 }), x + Math.cos(i * 0.785) * 0.98, FY + 1.68, -3.3 + Math.sin(i * 0.785) * 0.98, world); fl.castShadow = false; flames.push(fl); }
+  for (let i = 0; i < 8; i++) { const fl = mesh(new THREE.ConeGeometry(0.17, 0.42, 5), mat('#FFB24A', { e: '#FF8A2A', ei: 1.5 }), x + Math.cos(i * 0.785) * 0.98, FY + 1.68, -3.3 + Math.sin(i * 0.785) * 0.98, world); fl.castShadow = false; flames.push(fl); }
   box(0.12, 0.12, 1.4, '#6B4A2E', x + 0.9, FY + 2.5, -2.1, world);
   steamSources.push({ x, y: FY + 2.8, z: -3.3, spread: 0.8, size: 1.0, op: 0.3, rate: 1.4, on: () => inRange(T.WOK) });
 }
@@ -282,9 +282,10 @@ function vanPath(v, s) {
   const pts = cornered([[35, v.bay], [41, v.bay], [41, 22.5], [s.x + (s.z > 24 ? 1.5 : -1.5), 22.5], [s.x + (s.z > 24 ? 1.5 : -1.5), s.z > 24 ? s.z - 6 : s.z + 6]]);
   return pathCurve(pts);
 }
-function placeOnCurve(g, curve, u, reverse = false) {
+function placeOnCurve(g, curve, u, reverse = false, lane = 0) {
   u = clamp(u, 0, 1); const p = curve.getPointAt(u); const tg = curve.getTangentAt(u); if (reverse) tg.negate();
-  g.position.set(p.x, 0, p.z); g.rotation.y = Math.atan2(-tg.z, tg.x);
+  const L = curve.getLength(); const off = lane * clamp(Math.min(u * L, (1 - u) * L) / 6, 0, 1);
+  g.position.set(p.x + tg.z * off, 0, p.z - tg.x * off); g.rotation.y = Math.atan2(-tg.z, tg.x);
 }
 const truck = makeTruck();
 const truckCurve = pathCurve(cornered([[-80, 22.5], [-49.5, 22.5], [-49.5, 6]], 4));
@@ -393,18 +394,20 @@ const porter = worker(-44, 6, 0, 'walk');
 const $ = (id) => document.getElementById(id);
 const popEl = $('popups');
 const popups = [];
-function popup(text, pos, cls = '') { const el = document.createElement('div'); el.className = 'pop ' + cls; el.textContent = text; popEl.appendChild(el); popups.push({ el, pos: pos.clone(), life: 0 }); }
+function popup(text, pos, cls = '') { const el = document.createElement('div'); el.className = 'pop ' + cls; el.textContent = text; popEl.appendChild(el); const stack = popups.filter((q) => q.pos.distanceTo(pos) < 12 && q.life < 1.6).length; popups.push({ el, pos: pos.clone(), life: 0, dy: stack * 46 }); }
 const track = $('track'); let tickX = 0; const tickItems = [];
 function log(msg) {
   const el = document.createElement('span'); el.innerHTML = `<em>${fmt(S.clock)}</em>${msg}`; track.appendChild(el); tickItems.push(el);
   S.events.unshift({ t: S.clock, msg });
+  const wrapW = track.parentElement.offsetWidth; const lim = wrapW * 0.65 - tickX; let pend = [...track.children].filter((c) => c.offsetLeft > lim);
+  while (pend.length > 3) { track.removeChild(pend[0]); pend.shift(); }
 }
 function updateTicker(dt) {
   tickX -= dt * 70;
   const first = track.firstElementChild;
   if (first && tickX + first.offsetWidth < 0) {
     tickX += first.offsetWidth; track.removeChild(first);
-    if (track.children.length < 7) track.appendChild(first);
+    if (track.children.length < 5) track.appendChild(first);
   }
   const wrapW = track.parentElement.offsetWidth;
   if (track.offsetWidth + tickX < wrapW * 0.6 && track.children.length) { /* keep flowing */ }
@@ -520,9 +523,9 @@ function simStep(dtReal) {
     for (const v of vans) {
       const st = schoolState[v.si];
       if (v.state === 'loading' && c >= v.t0 + 6) { v.state = 'out'; v.t0 = c; st.status = 'road'; popup(`Van ${v.id} out, ${v.school.portions} trays`, new THREE.Vector3(36, 5, v.bay), 'terra'); log(`Van ${v.id} left for ${v.school.name}, ETA ${fmt(st.eta)}`); }
-      if (v.state === 'out') { const u = (c - v.t0) * VAN_SPEED / v.len; placeOnCurve(v.g, v.curve, u); if (u >= 1) { v.state = 'unload'; v.t0 = c; st.status = 'done'; st.at = c; S.delivered += v.school.portions; popup(`Delivered ${v.school.portions}`, new THREE.Vector3(v.school.x, 8, v.school.z), 'green'); log(`${v.school.name} received ${v.school.portions} trays, ready before lunch`); } }
+      if (v.state === 'out') { const u = (c - v.t0) * VAN_SPEED / v.len; placeOnCurve(v.g, v.curve, u, false, 1.35); if (u >= 1) { v.state = 'unload'; v.t0 = c; st.status = 'done'; st.at = c; S.delivered += v.school.portions; popup(`Delivered ${v.school.portions}`, new THREE.Vector3(v.school.x, 8, v.school.z), 'green'); log(`${v.school.name} received ${v.school.portions} trays, ready before lunch`); } }
       if (v.state === 'unload' && c >= v.t0 + 9) { v.state = 'back'; v.t0 = c; }
-      if (v.state === 'back') { const u = 1 - (c - v.t0) * VAN_SPEED / v.len; placeOnCurve(v.g, v.curve, u, true); if (u <= 0) { v.state = 'idle'; placeVanIdle(v); log(`Van ${v.id} back at the bay`); } }
+      if (v.state === 'back') { const u = 1 - (c - v.t0) * VAN_SPEED / v.len; placeOnCurve(v.g, v.curve, u, true, 1.35); if (u <= 0) { v.state = 'idle'; placeVanIdle(v); log(`Van ${v.id} back at the bay`); } }
     }
     for (let i = S.nextSchool; i < SCHOOLS.length; i++) schoolState[i].eta = Math.max(c, T.PORTION[0] + SCHOOLS[i].cum / RATE) + 6 + travelMin(vans[0], SCHOOLS[i]);
     if (S.delivered >= TARGET && !S.doneAt && vans.every((v) => v.state === 'idle' || v.state === 'back')) {
@@ -572,7 +575,7 @@ function simStep(dtReal) {
   workers.forEach((w) => animWorker(w, at));
   // flames
   const wokOn = inRange(T.WOK);
-  flames.forEach((f, i) => { f.visible = wokOn; const s = 0.7 + 0.4 * Math.abs(Math.sin(at * 9 + i * 1.7)); f.scale.set(1, s, 1); });
+  flames.forEach((f, i) => { f.visible = wokOn; const s = 0.6 + 0.5 * Math.abs(Math.sin(at * 9 + i * 1.7)); f.scale.set(1, s, 1); });
   wokFood.forEach((f, i) => { f.visible = wokOn; f.position.y = FY + 1.95 + Math.abs(Math.sin(at * 5 + i)) * 0.18; f.rotation.y = at * 2 + i; });
   // steam
   for (const src of steamSources) { if (!src.on()) continue; src.acc = (src.acc || 0) + sdt * src.rate * 1.4; while (src.acc > 1) { src.acc -= 1; emitPuff(src); } }
@@ -619,7 +622,7 @@ function updateCamera(dt) {
     else if (CAPTURE || S.speed > 0) { const ang = dt * 0.035 * (CAPTURE ? 1 : 0.6); camera.position.sub(controls.target).applyAxisAngle(new THREE.Vector3(0, 1, 0), ang).add(controls.target); }
     controls.update(); return;
   }
-  if (S.cam === 'map') { camPos.set(48, 215, 75); camTgt.set(48, 0, 8); }
+  if (S.cam === 'map') { camPos.set(52, 192, 68); camTgt.set(52, 0, 9); }
   if (S.cam === 'tray') {
     let t = S.followTray;
     if (!t || !t.alive) { t = TRAY_POOL.filter((q) => q.alive && q.x < -6).sort((a, c) => c.x - a.x)[0] || TRAY_POOL.filter((q) => q.alive).sort((a, c) => a.x - c.x)[0]; S.followTray = t; }
@@ -648,7 +651,7 @@ function updateOverlay(dt) {
     const p = popups[i]; p.life += dt; const k = p.life / 1.9;
     if (k >= 1) { p.el.remove(); popups.splice(i, 1); continue; }
     const s = toScreen(p.pos); p.el.style.display = s.vis ? 'block' : 'none';
-    p.el.style.left = s.x + 'px'; p.el.style.top = s.y - k * 50 + 'px'; p.el.style.opacity = k < 0.12 ? k / 0.12 : k > 0.75 ? (1 - k) / 0.25 : 1;
+    p.el.style.left = s.x + 'px'; p.el.style.top = s.y - k * 50 - p.dy + 'px'; p.el.style.opacity = k < 0.12 ? k / 0.12 : k > 0.75 ? (1 - k) / 0.25 : 1;
     p.el.style.transform = `translate(-50%,-100%) scale(${k < 0.12 ? 0.8 + k * 1.6 : 1})`;
   }
   const showLab = S.cam === 'map' || S.cam === 'overview' || S.cam === 'van';
@@ -675,7 +678,7 @@ renderTabs(); renderMenu();
 function frame(dt) {
   simStep(dt); applySky(); updateCamera(dt); updateTicker(dt); updateOverlay(dt); updateHUD();
   uiTimer += dt; if (uiTimer > 0.25) { uiTimer = 0; renderTabs(); }
-  composer.render();
+  if (!window.__skipRender) composer.render();
 }
 function viewOffset() { const off = innerWidth > 900 ? 190 : 0; camera.setViewOffset(innerWidth, innerHeight, off, 0, innerWidth, innerHeight); }
 viewOffset();
