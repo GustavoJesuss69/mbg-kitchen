@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="icon" href="./favicon.svg" />
+<title>MBG Kitchen, a day inside a school meal kitchen</title>
+<meta name="description" content="A browser 3D simulation of one day in an Indonesian MBG central kitchen, from early prep to school lunch delivery." />
+</head>
+<body>
+<canvas id="scene"></canvas>
+<div id="labels"></div>
+<div id="popups"></div>
+<header id="topbar">
+  <div class="brand">
+    <div class="logo-dot"></div>
+    <div><div class="title">MBG Central Kitchen</div><div class="sub">One day of free school meals, from 03:00 prep to lunch</div></div>
+  </div>
+  <div class="clockbox">
+    <div class="stage" id="stage">Receiving ingredients</div>
+    <div class="clock" id="clock">03:00</div>
+    <div class="day" id="dayname">Monday menu</div>
+  </div>
+  <div class="countbox">
+    <div class="count"><span id="count">0</span><span class="of"> / <span id="target">3,000</span> trays</span></div>
+    <div class="bar"><div class="fill" id="countbar"></div></div>
+    <div class="mini" id="delivered">0 delivered to schools</div>
+  </div>
+</header>
+<aside id="panel">
+  <nav class="tabs">
+    <button data-tab="kitchen" class="on">Kitchen</button>
+    <button data-tab="menu">Menu</button>
+    <button data-tab="deliveries">Deliveries</button>
+  </nav>
+  <section id="tab-kitchen" class="tab on"></section>
+  <section id="tab-menu" class="tab"></section>
+  <section id="tab-deliveries" class="tab"></section>
+</aside>
+<div id="controls">
+  <div class="group cams">
+    <button data-cam="overview" class="on"><b>1</b>Overview</button>
+    <button data-cam="map"><b>2</b>Top map</button>
+    <button data-cam="tray"><b>3</b>Follow tray</button>
+    <button data-cam="van"><b>4</b>Follow van</button>
+    <button data-cam="action"><b>5</b>Action cam</button>
+  </div>
+  <div class="group speed">
+    <button data-speed="0" title="Pause">&#10074;&#10074;</button>
+    <button data-speed="1">1x</button>
+    <button data-speed="2" class="on">2x</button>
+    <button data-speed="4">4x</button>
+  </div>
+</div>
+<div id="banner"></div>
+<footer id="ticker"><div class="tag">Kitchen log</div><div class="track-wrap"><div class="track" id="track"></div></div></footer>
+<div id="watermark">@gustavo jesus</div>
+<div id="cursor"></div>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
